@@ -12,6 +12,16 @@ import (
 	"github.com/jstemmer/go-junit-report/parser"
 )
 
+type (
+	Function struct {
+		Doc  string
+		File string
+	}
+	Functions        map[string]Function
+	PackageFunctions map[string]Functions
+	PackageDoc       map[string]string
+)
+
 // JUnitTestSuites is a collection of JUnit test suites.
 type JUnitTestSuites struct {
 	XMLName xml.Name         `xml:"testsuites"`
@@ -25,6 +35,7 @@ type JUnitTestSuite struct {
 	Tests      int             `xml:"tests,attr"`
 	Failures   int             `xml:"failures,attr"`
 	Time       string          `xml:"time,attr"`
+	ID         string          `xml:"id,attr"`
 	Name       string          `xml:"name,attr"`
 	Properties []JUnitProperty `xml:"properties>property,omitempty"`
 	TestCases  []JUnitTestCase `xml:"testcase"`
@@ -34,7 +45,9 @@ type JUnitTestSuite struct {
 type JUnitTestCase struct {
 	XMLName     xml.Name          `xml:"testcase"`
 	Classname   string            `xml:"classname,attr"`
+	ID          string            `xml:"id,attr"`
 	Name        string            `xml:"name,attr"`
+	File        string            `xml:"file,attr"`
 	Time        string            `xml:"time,attr"`
 	SkipMessage *JUnitSkipMessage `xml:"skipped,omitempty"`
 	Failure     *JUnitFailure     `xml:"failure,omitempty"`
@@ -60,7 +73,7 @@ type JUnitFailure struct {
 
 // JUnitReportXML writes a JUnit xml representation of the given report to w
 // in the format described at http://windyroad.org/dl/Open%20Source/JUnit.xsd
-func JUnitReportXML(report *parser.Report, noXMLHeader bool, goVersion string, w io.Writer) error {
+func JUnitReportXML(report *parser.Report, noXMLHeader bool, goVersion string, w io.Writer, pkgs PackageDoc, funcs PackageFunctions) error {
 	suites := JUnitTestSuites{}
 
 	// convert Report to JUnit test suites
@@ -70,9 +83,15 @@ func JUnitReportXML(report *parser.Report, noXMLHeader bool, goVersion string, w
 			Tests:      len(pkg.Tests) + len(pkg.Benchmarks),
 			Failures:   0,
 			Time:       formatTime(pkg.Duration),
+			ID:         pkg.Name,
 			Name:       pkg.Name,
 			Properties: []JUnitProperty{},
 			TestCases:  []JUnitTestCase{},
+		}
+
+		desc, ok := pkgs[pkg.Name]
+		if ok {
+			ts.Name = desc
 		}
 
 		classname := pkg.Name
@@ -94,9 +113,19 @@ func JUnitReportXML(report *parser.Report, noXMLHeader bool, goVersion string, w
 		for _, test := range pkg.Tests {
 			testCase := JUnitTestCase{
 				Classname: classname,
+				ID:        test.Name,
 				Name:      test.Name,
 				Time:      formatTime(test.Duration),
 				Failure:   nil,
+			}
+
+			p, ok := funcs[pkg.Name]
+			if ok {
+				desc, ok := p[testCase.Name]
+				if ok {
+					testCase.Name = desc.Doc
+					testCase.File = desc.File
+				}
 			}
 
 			if test.Result == parser.FAIL {

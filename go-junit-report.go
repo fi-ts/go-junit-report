@@ -33,7 +33,7 @@ func main() {
 	}
 
 	// Write xml
-	err = formatter.JUnitReportXML(report, *noXMLHeader, *goVersionFlag, os.Stdout)
+	err = formatter.JUnitReportXML(report, *noXMLHeader, *goVersionFlag, os.Stdout, nil, nil)
 	if err != nil {
 		fmt.Printf("Error writing XML: %s\n", err)
 		os.Exit(1)
