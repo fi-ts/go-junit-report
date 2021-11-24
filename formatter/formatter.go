@@ -121,9 +121,13 @@ func JUnitReportXML(report *parser.Report, noXMLHeader bool, goVersion string, w
 
 			p, ok := funcs[pkg.Name]
 			if ok {
-				desc, ok := p[testCase.Name]
+				parts := strings.Split(testCase.Name, "/") // sub tests have slashes
+				desc, ok := p[parts[0]]
 				if ok {
 					testCase.Name = desc.Doc
+					if len(parts) > 1 {
+						testCase.Name = fmt.Sprintf("%s (%s)", testCase.Name, strings.ReplaceAll(parts[len(parts)-1], "_", " "))
+					}
 					testCase.File = desc.File
 				}
 			}
